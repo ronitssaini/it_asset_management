@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - IT Asset Management</title>
+    <link rel="stylesheet" href="/static/style.css?v=2.2">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+        * { font-family: 'Montserrat', sans-serif !important; }
+        body {
+            background: linear-gradient(180deg, #e8d9ff 0%, #f8f5ff 60%, #fff 100%);
+        }
+        .landing-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            text-align: center;
+        }
+        .landing-hero h1 {
+            font-size: 2.5rem;
+            color: #782891;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(120, 40, 145, 0.08);
+        }
+        .landing-hero p {
+            font-size: 1.2rem;
+            color: #5E2074;
+            margin-bottom: 2.5rem;
+            text-shadow: 0 1px 2px rgba(120, 40, 145, 0.05);
+        }
+        .landing-actions {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+        }
+        .landing-actions a {
+            display: inline-block;
+            min-width: 140px;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            text-decoration: none;
+            color: white;
+            background: linear-gradient(135deg, #782891 0%, #9E4AB5 100%);
+            box-shadow: 0 4px 16px rgba(120, 40, 145, 0.15);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .landing-actions a:hover {
+            background: linear-gradient(135deg, #9E4AB5 0%, #b05ac8 100%);
+            box-shadow: 0 8px 32px rgba(120, 40, 145, 0.18);
+            transform: translateY(-2px);
+        }
+        .landing-footer {
+            text-align: center;
+            color: #9E4AB5;
+            margin-top: 3rem;
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+        .info-section {
+            max-width: 900px;
+            margin: 3rem auto 2rem auto;
+            padding: 2.5rem 2rem;
+            border-radius: 18px;
+            background: linear-gradient(120deg, #f8f5ff 60%, #fff 100%);
+            box-shadow: 0 4px 24px rgba(120, 40, 145, 0.08);
+        }
+        .info-section h2 {
+            color: #782891;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+        .info-section p {
+            color: #222;
+            font-size: 1.1rem;
+            margin-bottom: 0.7rem;
+        }
+        .info-section .highlight {
+            color: #5E2074;
+            font-weight: 600;
+        }
+        .info-section .contact-link {
+            color: #782891;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-logo" style="background:#fff; border-radius:8px; padding:4px 12px; display:flex; align-items:center; height:48px;">
+            <img src="/static/smart_ping_03022020.png" alt="Smart Ping Logo" style="height:40px; width:auto; display:block;" />
+        </div>
+        <h1>IT Asset Management</h1>
+    </nav>
+    <div class="landing-wrapper" style="display: flex; flex-direction: row; height: 100vh; width: 100vw;">
+        <!-- Image Section -->
+        <div class="landing-image" style="
+            flex: 0 0 32%;
+            max-width: 35vw;
+            min-width: 30vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 1vh 1vw;
+        ">
+            <img src="/static/Unknown.png" alt="Landing Visual" style="
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: 10px;
+            " />
+        </div>
+
+
+        
+    
+        <!-- Hero Text Section -->
+        <div class="container landing-hero" style="
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: left;
+            padding-left: 4vw;
+        ">
+            <h1>Welcome to IT Asset Management</h1>
+            <p>Effortlessly manage, track, and analyze your organization's IT assets.<br>
+            Secure, modern, and easy to use.</p>
+            <div class="landing-actions">
+                <a href="/login" style="align-items: center; justify-content: center;">Login</a>
+                <a href="/register">Register</a>
+            </div>
+        </div>
+    </div>
+    
+   
+    <div class="info-section" id="about">
+        <h2>About Us</h2>
+        <p class="highlight"><b>We Help Enterprises, Marketers & CXOs Work Smart</b></p>
+        <p>Founded in 2015, SmartPing is a specialized Enterprise & Tele Communications service provider that connects businesses with their consumers over telecom and internet channels. ONE-STOP-SOLUTION for integrated communication backed up by innovative and intelligent technical platforms for SMEs, MNCs, large enterprises & Government entities</p>
+    </div>
+    <div class="info-section" id="contact">
+        <h2>Contact Us</h2>
+        <p>Email: <a class="contact-link" href="mailto:info@vispl.in">info@vispl.in</a></p>
+        <p>Phone: <a class="contact-link" href="tel:1800 911 1111">1800 911 1111</a></p>
+    </div>
+    <div class="landing-footer">
+        &copy; 2025 IT Asset Management. All rights reserved.
+    </div>
+</body>
+</html> 

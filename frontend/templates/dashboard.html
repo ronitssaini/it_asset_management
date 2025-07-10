@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - IT Asset Management</title>
+    <link rel="stylesheet" href="/static/style.css?v=2.2">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');*{font-family:'Montserrat',sans-serif!important;}</style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        .analytics-section { margin-top: 2rem; }
+        .an ffnalytics-grid { display: flex; flex-wrap: wrap; gap: 2rem; }
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(120,40,145,0.08); padding: 2rem; flex: 1 1 350px; min-width: 340px; }
+        .chart-container { position: relative; height: 320px; width: 100%; }
+        .desktop-table-container { margin-top: 2rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 0.75rem 1rem; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f5ff; color: #782891; font-weight: 600; }
+        tr:hover { background: #f3eaff; }
+        .clickable { cursor: pointer; color: #782891; text-decoration: underline; }
+        .chart-title { margin-bottom: 0.5rem; font-size: 1.1rem; font-weight: 600; color: #782891; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-logo" style="background:#fff; border-radius:8px; padding:4px 12px; display:flex; align-items:center; height:48px;">
+            <img src="/static/smart_ping_03022020.png" alt="Smart Ping Logo" style="height:40px; width:auto; display:block;" />
+        </div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard" class="active">Dashboard</a>
+            <a href="/upload" id="uploadAssetLink" style="display:none;">Upload Assets</a>
+            <a href="/add_asset" id="addAssetLink" style="display:none;">Add Asset</a>
+            <a href="#about">About Us</a>
+            <a href="#contact">Contact Us</a>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3>Total Assets</h3>
+                <p id="totalAssets">Loading...</p>
+            </div>
+            <div class="card">
+                <h3>Asset Types</h3>
+                <div id="assetTypes">Loading...</div>
+            </div>
+            <div class="card" id="adminCard" style="display: none;">
+                <h3>Admin Actions</h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <button onclick="goToAdminApprovals()" style="width: 100%;">
+                        Manage User Approvals
+                    </button>
+                    <p style="font-size: 0.9rem; color: #666; margin: 0;">
+                        Approve or reject new user registrations
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div id="adminAssetTableSection" style="display:none; margin-top:2.5rem;">
+            <div class="card">
+                <h3>All Assets (Admin Only)</h3>
+                <button id="toggleAssetTableBtn" style="background:#782891;color:#fff;border:none;padding:0.6rem 1.5rem;border-radius:6px;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:1rem;">View All Assets</button>
+                <div id="adminAssetTable" style="display:none;"></div>
+            </div>
+        </div>
+        <!-- Analytics Section -->
+        <div class="analytics-section">
+            <h2>Asset Analytics</h2>
+            <div class="analytics-grid">
+                <div class="card">
+                    <div class="chart-title">Asset Distribution by Type</div>
+                    <div class="chart-container"><canvas id="assetTypeChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="chart-title" id="locationChartTitle">Asset Distribution by Location & Type</div>
+                    <div class="chart-container"><canvas id="locationChart"></canvas></div>
+                    <div id="locationLegend" style="margin-top:1rem;"></div>
+                    <div style="font-size:0.95rem;color:#888;margin-top:0.5rem;">Each bar is divided by asset type</div>
+                </div>
+            </div>
+            <div class="desktop-table-container">
+                <h3>Desktops - Last User Table</h3>
+                <div id="desktopTable"></div>
+            </div>
+            <div class="server-tree-container" style="margin-top:2.5rem;">
+                <h3>Server Hierarchy (Physical & Virtual)</h3>
+                <div id="serverTree" style="min-height:200px;"></div>
+            </div>
+        </div>
+    </div>
+    <div id="about" style="display:none;">
+        <h2>About Us</h2>
+        <p><b>We Help Enterprises, Marketers & CXOs Work Smart</b></p>
+        <p>Founded in 2015, SmartPing is a specialized Enterprise & Tele Communications service provider that connects businesses with their consumers over telecom and internet channels. ONE-STOP-SOLUTION for integrated communication backed up by innovative and intelligent technical platforms for SMEs, MNCs, large enterprises & Government entities</p>
+    </div>
+    <div id="contact" style="display:none;">
+        <h2>Contact Us</h2>
+        <p>Email: <a href="mailto:info@vispl.in">info@vispl.in</a></p>
+        <p>Phone: <a href="tel:1800 911 1111">1800 911 1111</a></p>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let assets = [];
+        let assetTypeChart, locationChart;
+
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login';
+        }
+
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/me', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    currentUser = await response.json();
+                    // Show Upload/Add Asset links for admin only
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('addAssetLink').style.display = 'inline-block';
+                        document.getElementById('uploadAssetLink').style.display = 'inline-block';
+                    }
+                    checkAdminStatus();
+                }
+            } catch (error) {
+                console.error('Error getting current user:', error);
+            }
+        }
+
+        function checkAdminStatus() {
+            if (currentUser && currentUser.role === 'admin') {
+                document.getElementById('adminCard').style.display = 'block';
+                document.getElementById('adminAssetTableSection').style.display = 'block';
+                // Hide table by default
+                document.getElementById('adminAssetTable').style.display = 'none';
+                document.getElementById('toggleAssetTableBtn').onclick = function() {
+                    const table = document.getElementById('adminAssetTable');
+                    if (table.style.display === 'none') {
+                        renderAdminAssetTable();
+                        table.style.display = 'block';
+                        this.textContent = 'Hide All Assets';
+                    } else {
+                        table.style.display = 'none';
+                        this.textContent = 'View All Assets';
+                    }
+                };
+            }
+        }
+
+        async function loadDashboardAndAnalytics() {
+            try {
+                const response = await fetch('/assets', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    assets = await response.json();
+                    document.getElementById('totalAssets').textContent = assets.length;
+                    // Count asset types for dashboard
+                    const assetTypes = {};
+                    assets.forEach(asset => {
+                        assetTypes[asset.device_type] = (assetTypes[asset.device_type] || 0) + 1;
+                    });
+                    const assetTypesHtml = Object.entries(assetTypes)
+                        .map(([type, count]) => `<div>${type}: ${count}</div>`)
+                        .join('');
+                    document.getElementById('assetTypes').innerHTML = assetTypesHtml;
+                    // Render analytics charts and table
+                    renderChartsAndTable();
+                }
+            } catch (error) {
+                console.error('Error loading dashboard/analytics:', error);
+            }
+        }
+
+        function renderChartsAndTable() {
+            // --- Asset Type Pie Chart ---
+            const assetTypes = {};
+            assets.forEach(asset => {
+                assetTypes[asset.device_type] = (assetTypes[asset.device_type] || 0) + 1;
+            });
+            const typeLabels = Object.keys(assetTypes);
+            const typeCounts = Object.values(assetTypes);
+            if (assetTypeChart) assetTypeChart.destroy();
+            assetTypeChart = new Chart(document.getElementById('assetTypeChart'), {
+                type: 'pie',
+                data: {
+                    labels: typeLabels,
+                    datasets: [{
+                        data: typeCounts,
+                        backgroundColor: ['#782891', '#4AB5A7', '#F7B801', '#EA5455', '#2D4059', '#9E4AB5', '#5E2074'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Montserrat', size: 14 } } },
+                        tooltip: { enabled: true }
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const type = assetTypeChart.data.labels[elements[0].index];
+                            showLocationBreakdown(type);
+                        }
+                    }
+                }
+            });
+            // --- Location Stacked Bar Chart (default: all types) ---
+            showLocationBreakdown();
+            // --- Desktop Table ---
+            showDesktopTable();
+            // --- Server Tree ---
+            renderServerTree();
+        }
+
+        function showLocationBreakdown(type = null) {
+            // Collect all locations and asset types
+            let filtered = assets;
+            let title = 'Asset Distribution by Location & Type';
+            if (type) {
+                filtered = assets.filter(a => a.device_type === type);
+                title = `Location Distribution for <span style='color:#782891;'>${type}</span>`;
+            }
+            // Get all unique locations and asset types
+            const allLocations = Array.from(new Set(filtered.map(a => a.location).filter(Boolean)));
+            const allTypes = Array.from(new Set(filtered.map(a => a.device_type).filter(Boolean)));
+            // Vibrant color palette
+            const colorList = ['#782891', '#4AB5A7', '#F7B801', '#EA5455', '#2D4059', '#9E4AB5', '#5E2074', '#FF6F61', '#00B8A9', '#FFD460'];
+            // Build dataset for each asset type
+            const datasets = allTypes.map((atype, idx) => {
+                return {
+                    label: atype,
+                    data: allLocations.map(loc => filtered.filter(a => a.location === loc && a.device_type === atype).length),
+                    backgroundColor: colorList[idx % colorList.length],
+                    stack: 'assetTypeStack',
+                    datalabels: {
+                        color: '#fff',
+                        font: { weight: 'bold', family: 'Montserrat' },
+                        anchor: 'center',
+                        align: 'center',
+                        formatter: v => v > 0 ? v : ''
+                    }
+                };
+            });
+            document.getElementById('locationChartTitle').innerHTML = title;
+            if (locationChart) locationChart.destroy();
+            locationChart = new Chart(document.getElementById('locationChart'), {
+                type: 'bar',
+                data: {
+                    labels: allLocations,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: true },
+                        datalabels: {
+                            display: true,
+                            color: '#fff',
+                            font: { weight: 'bold', family: 'Montserrat' },
+                            anchor: 'center',
+                            align: 'center',
+                            formatter: v => v > 0 ? v : ''
+                        }
+                    },
+                    animation: {
+                        duration: 1200,
+                        easing: 'easeOutQuart'
+                    },
+                    scales: {
+                        x: { stacked: true, ticks: { font: { family: 'Montserrat', size: 14 } } },
+                        y: { stacked: true, beginAtZero: true, ticks: { font: { family: 'Montserrat', size: 14 } } }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+            // Custom legend
+            let legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:1.2rem;align-items:center;">';
+            datasets.forEach((ds, i) => {
+                legendHtml += `<span style="display:inline-flex;align-items:center;"><span style="display:inline-block;width:18px;height:18px;background:${ds.backgroundColor};border-radius:4px;margin-right:7px;"></span>${ds.label}</span>`;
+            });
+            legendHtml += '</div>';
+            document.getElementById('locationLegend').innerHTML = legendHtml;
+        }
+
+        // --- Server Tree Visualization ---
+        function renderServerTree() {
+            // Group servers by parsed serial number logic
+            const servers = assets.filter(a => a.device_type && a.device_type.toLowerCase().includes('server'));
+            // Map: baseSerial -> { master: serverObj, slaves: [serverObj, ...] }
+            const tree = {};
+            servers.forEach(s => {
+                if (!s.serial_number) return;
+                const parts = s.serial_number.split('-');
+                if (parts.length !== 2) return;
+                const base = parts[0];
+                const suffix = parts[1].toUpperCase();
+                if (!tree[base]) tree[base] = { master: null, slaves: [] };
+                if (suffix === 'P') {
+                    tree[base].master = s;
+                } else if (suffix.startsWith('V')) {
+                    tree[base].slaves.push(s);
+                }
+            });
+            // Build tree HTML
+            let html = '<ul style="list-style:none;padding-left:0;">';
+            Object.entries(tree).forEach(([base, group]) => {
+                html += '<li style="margin-bottom:1rem;">';
+                if (group.master) {
+                    html += `<span style="font-weight:600;color:#782891;">${group.master.serial_number}</span> <span style="color:#4AB5A7;">(Master Server)</span>`;
+                } else {
+                    html += `<span style="font-weight:600;color:#782891;">${base}-P</span> <span style="color:#EA5455;">(Master Server Not Found)</span>`;
+                }
+                if (group.slaves.length > 0) {
+                    html += '<ul style="margin-top:0.5rem;">';
+                    group.slaves.forEach(v => {
+                        html += `<li style="margin-bottom:0.3rem;">↳ <span style="color:#F7B801;">Slave Server</span> <span style="color:#2D4059;">(${v.serial_number})</span> <span style="color:#888;">${v.location ? '- ' + v.location : ''}</span></li>`;
+                    });
+                    html += '</ul>';
+                }
+                html += '</li>';
+            });
+            html += '</ul>';
+            document.getElementById('serverTree').innerHTML = html;
+        }
+
+        function showDesktopTable() {
+            const desktops = assets.filter(a => a.device_type && a.device_type.toLowerCase() === 'desktop');
+            let html = '<table><thead><tr><th>Serial No.</th><th>Last User</th><th>Location</th><th>Make</th><th>Function</th><th>Additional Devices</th></tr></thead><tbody>';
+            desktops.forEach(d => {
+                let addl = d.additional_device ? d.additional_device : 'None';
+                html += `<tr><td>${d.serial_number || ''}</td><td>${d.employee_name || ''}</td><td>${d.location || ''}</td><td>${d.make || ''}</td><td>${d.function || ''}</td><td>${addl}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('desktopTable').innerHTML = html;
+        }
+
+        async function renderAdminAssetTable() {
+            // Fetch all assets (admin only)
+            const resp = await fetch('/assets', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (!resp.ok) {
+                document.getElementById('adminAssetTable').innerHTML = '<div style="color:#EA5455;">Failed to load assets.</div>';
+                return;
+            }
+            const allAssets = await resp.json();
+            let html = '<table><thead><tr><th>Serial No.</th><th>Type</th><th>Company</th><th>Location</th><th>Make</th><th>Employee</th><th>Action</th></tr></thead><tbody>';
+            allAssets.forEach(a => {
+                html += `<tr><td>${a.serial_number || ''}</td><td>${a.device_type || ''}</td><td>${a.company_name || ''}</td><td>${a.location || ''}</td><td>${a.make || ''}</td><td>${a.employee_name || ''}</td><td><button onclick="deleteAsset('${a.serial_number}')" style="background:#EA5455;color:#fff;border:none;padding:0.4rem 1rem;border-radius:5px;cursor:pointer;">Delete</button></td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('adminAssetTable').innerHTML = html;
+        }
+
+        async function deleteAsset(serial) {
+            if (!confirm('Are you sure you want to delete this asset?')) return;
+            const resp = await fetch(`/assets/${serial}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (resp.ok) {
+                renderAdminAssetTable();
+                loadDashboardAndAnalytics();
+            } else {
+                alert('Failed to delete asset.');
+            }
+        }
+
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (this.getAttribute('href').startsWith('#')) {
+                    e.preventDefault();
+                    document.querySelectorAll('#about, #contact').forEach(sec => sec.style.display = 'none');
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) target.style.display = 'block';
+                    window.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+                }
+            });
+        });
+
+        function goToAdminApprovals() {
+            window.location.href = '/admin/approvals';
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+
+        // Load user info and dashboard/analytics on page load
+        getCurrentUser();
+        loadDashboardAndAnalytics();
+    </script>
+</body>
+</html>

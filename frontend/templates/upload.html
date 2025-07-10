@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Assets - IT Asset Management</title>
+    <link rel="stylesheet" href="/static/style.css?v=2.1">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');*{font-family:'Montserrat',sans-serif!important;}</style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-logo" style="background:#fff; border-radius:8px; padding:4px 12px; display:flex; align-items:center; height:48px;">
+            <img src="/static/smart_ping_03022020.png" alt="Smart Ping Logo" style="height:40px; width:auto; display:block;" />
+        </div>
+        <div class="nav-links">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/upload" class="active">Upload Assets</a>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="upload-section">
+            <div class="info-box" style="background:#f8f5ff; border-left:6px solid #782891; border-radius:8px; padding:1.5rem 2rem; margin-bottom:2rem; color:#4B286D;">
+                <h3 style="margin-top:0; color:#782891;">Important: Excel Upload Guidelines</h3>
+                <ul style="margin:0 0 0 1.5rem; padding:0; font-size:1.05rem;">
+                    <li><b>Sheet Names:</b> Use <b>Desktop</b>, <b>Server</b>, and/or <b>Switches</b> as sheet names (case-sensitive).</li>
+                    <li><b>Required Columns:</b> Each sheet must have these columns:<br>
+                        <b>Desktop:</b> Serial No., Company Name, Device Type<br>
+                        <b>Server:</b> Serial No., Company Name<br>
+                        <b>Switches:</b> Serial No., Company Name
+                    </li>
+                    <li><b>Column Names:</b> Must match exactly (e.g., <code>Serial No.</code>, <code>Company Name</code>).</li>
+                    <li><b>Duplicates:</b> Duplicate Serial No. rows will be skipped automatically.</li>
+                    <li><b>Missing Required Fields:</b> Rows missing required fields will be ignored.</li>
+                    <li><b>File Format:</b> Only .xlsx or .xls files are accepted.</li>
+                    <li><b>Tip:</b> <a href="/static/sample_inventory.xlsx" download style="color:#782891; text-decoration:underline; font-weight:600;">Download a sample template</a> if unsure about the format.</li>
+
+                </ul>
+            </div>
+            <h2>Upload Asset Inventory</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Select Excel File:</label>
+                    <input type="file" id="file" name="file" accept=".xlsx,.xls" required>
+                </div>
+                <button type="submit">Upload</button>
+            </form>
+            <div id="uploadStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login';
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            const fileInput = document.getElementById('file');
+            formData.append('file', fileInput.files[0]);
+            
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.textContent = 'Uploading...';
+            
+            try {
+                const response = await fetch('/upload/excel', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    statusDiv.innerHTML = `
+                        <div class="success">
+                            <h3>Upload Successful!</h3>
+                            <p>File: ${result.filename}</p>
+                            <p>Parsed Items: ${result.parsed_items}</p>
+                        </div>
+                    `;
+                } else {
+                    const error = await response.json();
+                    statusDiv.innerHTML = `<div class="error">Upload failed: ${error.detail}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">An error occurred: ${error.message}</div>`;
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+</html>

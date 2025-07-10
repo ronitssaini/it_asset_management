@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Approvals - IT Asset Management</title>
+    <link rel="stylesheet" href="/static/style.css?v=2.2">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');*{font-family:'Montserrat',sans-serif!important;}</style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-logo" style="background:#fff; border-radius:8px; padding:4px 12px; display:flex; align-items:center; height:48px;">
+            <img src="/static/smart_ping_03022020.png" alt="Smart Ping Logo" style="height:40px; width:auto; display:block;" />
+        </div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/upload">Upload Assets</a>
+            <a href="/analytics">Analytics</a>
+            <a href="/admin/approvals" class="active">Approvals</a>
+            <a href="#about">About Us</a>
+            <a href="#contact">Contact Us</a>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </nav>
+    <div class="container">
+        <h2>All Users</h2>
+        <table id="usersTable" style="width:100%; margin-top:2rem;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div id="approvalMessage"></div>
+    </div>
+    <div id="about" style="display:none;">
+        <h2>About Us</h2>
+        <p><b>We Help Enterprises, Marketers & CXOs Work Smart</b></p>
+        <p>Founded in 2015, SmartPing is a specialized Enterprise & Tele Communications service provider that connects businesses with their consumers over telecom and internet channels. ONE-STOP-SOLUTION for integrated communication backed up by innovative and intelligent technical platforms for SMEs, MNCs, large enterprises & Government entities</p>
+    </div>
+    <div id="contact" style="display:none;">
+        <h2>Contact Us</h2>
+        <p>Email: <a href="mailto:info@vispl.in">info@vispl.in</a></p>
+        <p>Phone: <a href="tel:1800 911 1111">1800 911 1111</a></p>
+    </div>
+    <script>
+        let currentUser = null;
+        // Check if user is logged in
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login';
+        }
+
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/me', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    currentUser = await response.json();
+                }
+            } catch (error) {
+                // ignore
+            }
+        }
+
+        async function loadAllUsers() {
+            const tableBody = document.querySelector('#usersTable tbody');
+            tableBody.innerHTML = '';
+            try {
+                const response = await fetch('/users', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    const users = await response.json();
+                    if (users.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="6">No users found.</td></tr>';
+                    } else {
+                        users.forEach(user => {
+                            const row = document.createElement('tr');
+                            let actions = '';
+                            if (!user.is_active) {
+                                actions += `<button onclick="approveUser(${user.id})">Approve</button> `;
+                            }
+                            if (!currentUser || user.id !== currentUser.id) {
+                                actions += `<button onclick="rejectUser(${user.id})" style="background:#e74c3c;">Reject</button>`;
+                            }
+                            row.innerHTML = `
+                                <td>${user.id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.email}</td>
+                                <td>${user.role}</td>
+                                <td>${user.is_active ? 'Active' : 'Pending'}</td>
+                                <td>${actions}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    }
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="6">Failed to load users.</td></tr>';
+                }
+            } catch (error) {
+                tableBody.innerHTML = '<tr><td colspan="6">An error occurred.</td></tr>';
+            }
+        }
+
+        async function approveUser(userId) {
+            try {
+                const response = await fetch(`/users/approve/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    document.getElementById('approvalMessage').textContent = 'User approved!';
+                    loadAllUsers();
+                } else {
+                    const error = await response.json();
+                    document.getElementById('approvalMessage').textContent = error.detail || 'Approval failed.';
+                }
+            } catch (error) {
+                document.getElementById('approvalMessage').textContent = 'An error occurred.';
+            }
+        }
+
+        async function rejectUser(userId) {
+            if (!confirm('Are you sure you want to reject and delete this user?')) return;
+            try {
+                const response = await fetch(`/users/reject/${userId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    document.getElementById('approvalMessage').textContent = 'User rejected and deleted!';
+                    loadAllUsers();
+                } else {
+                    const error = await response.json();
+                    document.getElementById('approvalMessage').textContent = error.detail || 'Rejection failed.';
+                }
+            } catch (error) {
+                document.getElementById('approvalMessage').textContent = 'An error occurred.';
+            }
+        }
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                if (this.getAttribute('href').startsWith('#')) {
+                    e.preventDefault();
+                    document.querySelectorAll('#about, #contact').forEach(sec => sec.style.display = 'none');
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) target.style.display = 'block';
+                    window.scrollTo({ top: target.offsetTop, behavior: 'smooth' });
+                }
+            });
+        });
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+
+        // Expose approveUser and rejectUser to global scope
+        window.approveUser = approveUser;
+        window.rejectUser = rejectUser;
+
+        // Load all users on page load
+        (async function() {
+            await getCurrentUser();
+            await loadAllUsers();
+        })();
+    </script>
+</body>
+</html> 
