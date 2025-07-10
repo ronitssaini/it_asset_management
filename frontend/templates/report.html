@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Asset Report</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .filter-bar { margin: 2rem 0; display: flex; gap: 1.5rem; align-items: center; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 2rem; }
+        .report-table th, .report-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #eee; }
+        .report-table th { background: #f8f5ff; color: #782891; font-weight: 600; }
+        .download-btn { background: #782891; color: #fff; border: none; padding: 0.6rem 1.5rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        .download-btn:hover { background: #4AB5A7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 id="reportTitle">Asset Report</h2>
+        <div class="filter-bar">
+            <label>Device Type:
+                <select id="filterDeviceType">
+                    <option value="">All</option>
+                    <option value="Desktop">Desktop</option>
+                    <option value="Laptop">Laptop</option>
+                    <option value="Server">Server</option>
+                    <option value="Switch">Switch</option>
+                    <option value="Storage">Storage</option>
+                </select>
+            </label>
+            <label>Location:
+                <input type="text" id="filterLocation" placeholder="Any" />
+            </label>
+            <label>Date Range:
+                <input type="date" id="filterStartDate" /> to
+                <input type="date" id="filterEndDate" />
+            </label>
+            <button class="download-btn" onclick="downloadReport()">Download CSV</button>
+        </div>
+        <div id="reportTable"></div>
+    </div>
+    <script>
+        // Parse report type from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const reportType = urlParams.get('type') || 'type';
+        document.getElementById('reportTitle').textContent =
+            reportType === 'location' ? 'Asset Distribution by Location & Type' : 'Asset Distribution by Type';
+
+        // Fetch and render report data
+        async function fetchReportData() {
+            const deviceType = document.getElementById('filterDeviceType').value;
+            const location = document.getElementById('filterLocation').value;
+            const startDate = document.getElementById('filterStartDate').value;
+            const endDate = document.getElementById('filterEndDate').value;
+            const params = new URLSearchParams({
+                type: reportType,
+                device_type: deviceType,
+                location,
+                start_date: startDate,
+                end_date: endDate
+            });
+            const resp = await fetch(`/assets/report?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                renderReportTable(data);
+            } else {
+                document.getElementById('reportTable').innerHTML = '<div style="color:#EA5455;">Failed to load report data.</div>';
+            }
+        }
+
+        function renderReportTable(data) {
+            if (!data.length) {
+                document.getElementById('reportTable').innerHTML = '<div>No data found for the selected filters.</div>';
+                return;
+            }
+            let html = '<table class="report-table"><thead><tr>';
+            Object.keys(data[0]).forEach(key => {
+                html += `<th>${key.replace(/_/g, ' ')}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                Object.values(row).forEach(val => {
+                    html += `<td>${val !== null && val !== undefined ? val : ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('reportTable').innerHTML = html;
+        }
+
+        async function downloadReport() {
+            const deviceType = document.getElementById('filterDeviceType').value;
+            const location = document.getElementById('filterLocation').value;
+            const startDate = document.getElementById('filterStartDate').value;
+            const endDate = document.getElementById('filterEndDate').value;
+            const params = new URLSearchParams({
+                type: reportType,
+                device_type: deviceType,
+                location,
+                start_date: startDate,
+                end_date: endDate
+            });
+            const resp = await fetch(`/assets/report/download?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (resp.ok) {
+                const blob = await resp.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'asset_report.csv';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert('Failed to download report.');
+            }
+        }
+
+        // Fetch data on page load and when filters change
+        document.getElementById('filterDeviceType').addEventListener('change', fetchReportData);
+        document.getElementById('filterLocation').addEventListener('input', fetchReportData);
+        document.getElementById('filterStartDate').addEventListener('change', fetchReportData);
+        document.getElementById('filterEndDate').addEventListener('change', fetchReportData);
+        fetchReportData();
+    </script>
+</body>
+</html> 

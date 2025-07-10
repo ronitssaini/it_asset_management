@@ -75,6 +75,10 @@ async def admin_approvals_page(request: Request):
 async def add_asset_page(request: Request):
     return templates.TemplateResponse("add_asset.html", {"request": request})
 
+@app.get("/report", response_class=HTMLResponse)
+async def report_page(request: Request):
+    return templates.TemplateResponse("report.html", {"request": request})
+
 @app.get("/", response_class=HTMLResponse, tags=["Landing"])
 def landing_page(request: Request):
     return templates.TemplateResponse("landing.html", {"request": request})

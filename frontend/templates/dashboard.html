@@ -74,12 +74,14 @@
                 <div class="card">
                     <div class="chart-title">Asset Distribution by Type</div>
                     <div class="chart-container"><canvas id="assetTypeChart"></canvas></div>
+                    <button class="report-btn" onclick="goToReport('type')">Generate Report</button>
                 </div>
                 <div class="card">
                     <div class="chart-title" id="locationChartTitle">Asset Distribution by Location & Type</div>
                     <div class="chart-container"><canvas id="locationChart"></canvas></div>
                     <div id="locationLegend" style="margin-top:1rem;"></div>
                     <div style="font-size:0.95rem;color:#888;margin-top:0.5rem;">Each bar is divided by asset type</div>
+                    <button class="report-btn" onclick="goToReport('location')">Generate Report</button>
                 </div>
             </div>
             <div class="desktop-table-container">
@@ -426,6 +428,10 @@
         function logout() {
             localStorage.removeItem('token');
             window.location.href = '/login';
+        }
+
+        function goToReport(reportType) {
+            window.location.href = `/report?type=${encodeURIComponent(reportType)}`;
         }
 
         // Load user info and dashboard/analytics on page load

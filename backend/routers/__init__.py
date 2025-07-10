@@ -19,3 +19,7 @@ router_add_asset_page = APIRouter()
 @router_add_asset_page.get('/add_asset', response_class=HTMLResponse)
 def add_asset_page(request: Request):
     return templates.TemplateResponse('add_asset.html', {"request": request})
+
+@router_add_asset_page.get('/report', response_class=HTMLResponse)
+def report_page(request: Request):
+    return templates.TemplateResponse('report.html', {"request": request})

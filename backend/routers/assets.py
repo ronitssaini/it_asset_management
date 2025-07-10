@@ -5,6 +5,9 @@ from backend.auth.dependencies import admin_required, manager_or_admin_required
 from backend.models.asset import Asset
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi.responses import StreamingResponse
+import csv
+from io import StringIO
 
 # This is the critical line - must create the router instance
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -64,3 +67,57 @@ def delete_asset(serial_number: str, db: Session = Depends(get_db), role: str = 
     db.delete(asset)
     db.commit()
     return
+
+@router.get("/report")
+def get_asset_report(
+    type: str = None,
+    device_type: str = None,
+    location: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db),
+    role: str = Depends(manager_or_admin_required)
+):
+    query = db.query(Asset)
+    if device_type:
+        query = query.filter(Asset.device_type == device_type)
+    if location:
+        query = query.filter(Asset.location.ilike(f"%{location}%"))
+    if start_date:
+        query = query.filter(Asset.purchase_date >= start_date)
+    if end_date:
+        query = query.filter(Asset.purchase_date <= end_date)
+    assets = query.all()
+    # For type/location report, you could aggregate here if needed, but for now return all filtered assets
+    return [asset_to_dict(a) for a in assets]
+
+@router.get("/report/download")
+def download_asset_report(
+    type: str = None,
+    device_type: str = None,
+    location: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db),
+    role: str = Depends(manager_or_admin_required)
+):
+    query = db.query(Asset)
+    if device_type:
+        query = query.filter(Asset.device_type == device_type)
+    if location:
+        query = query.filter(Asset.location.ilike(f"%{location}%"))
+    if start_date:
+        query = query.filter(Asset.purchase_date >= start_date)
+    if end_date:
+        query = query.filter(Asset.purchase_date <= end_date)
+    assets = query.all()
+    output = StringIO()
+    writer = csv.writer(output)
+    if assets:
+        writer.writerow([c.name for c in Asset.__table__.columns])
+        for a in assets:
+            writer.writerow([getattr(a, c.name) for c in Asset.__table__.columns])
+    else:
+        writer.writerow(["No data found for the selected filters."])
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=asset_report.csv"})
