@@ -6,6 +6,8 @@ desktop_columns = [
     "Company Name", "Device Type", "MAKE", "Serial No.", "Processor", "Hard disk", "Ram", "Monitor", "Location",
     "OS Version", "IP address", "Subnet Mask", "Purchase Date", "Additional Device", "Emp. Code", "Name", "Function", "Role", "Remarks"
 ]
+# Add laptops_columns as same as desktop_columns
+laptops_columns = desktop_columns.copy()
 server_columns = [
     "Company Name", "Typer", "MAKE", "Serial No.", "Processor Typer", "Processor", "Total Processo Core", "Internal Hard Disk",
     "Disk Type", "Qty", "Raid", "Ram", "Network Card", "HBA Card", "Location", "OS Version", "IP address", "Subnet Mask", "Purchase Date"
@@ -13,17 +15,24 @@ server_columns = [
 switch_columns = [
     "Company Name", "Model", "MAKE", "Serial No.", "No. of Ports", "OS Version", "IP address", "Subnet Mask", "Purchase Date", "Additional Device", "Remarks"
 ]
+storage_columns = [
+    "Company Name", "Device Type", "Model", "MAKE", "Serial No.", "Total Capacity", "Disk type", "OS Version", "IP address", "Subnet Mask", "Purchase Date", "Additional Device", "Remarks"
+]
 
 required_columns = {
     "Desktop": ["Serial No.", "Company Name", "Device Type"],
+    "Laptop": ["Serial No.", "Company Name", "Device Type"],
     "Server": ["Serial No.", "Company Name"],
-    "Switches": ["Serial No.", "Company Name"]
+    "Switches": ["Serial No.", "Company Name"],
+    "Storage": ["Serial No.", "Company Name", "Device Type"]
 }
 
 sheet_columns = {
     "Desktop": desktop_columns,
+    "Laptop": laptops_columns,
     "Server": server_columns,
-    "Switches": switch_columns
+    "Switches": switch_columns,
+    "Storage": storage_columns
 }
 
 def clean_sheet(df, sheet_name):
@@ -39,18 +48,20 @@ def clean_and_parse_inventory(file_path: str):
     """Clean and parse all relevant sheets from inventory Excel for backend upload."""
     xls = pd.ExcelFile(file_path)
     assets = []
-    for sheet in ["Desktop", "Server", "Switches"]:
+    for sheet in ["Desktop", "Laptop", "Server", "Switches", "Storage"]:
         if sheet in xls.sheet_names:
             print(f"[DEBUG] Cleaning and parsing sheet: {sheet}")
             df = pd.read_excel(xls, sheet_name=sheet, skiprows=1)
             cleaned_df = clean_sheet(df, sheet)
             print(f"[DEBUG] {sheet}: {len(cleaned_df)} rows after cleaning.")
-            if sheet == "Desktop":
+            if sheet in ["Desktop", "Laptop"]:
                 assets.extend(_process_computers(cleaned_df))
             elif sheet == "Server":
                 assets.extend(_process_servers(cleaned_df))
             elif sheet == "Switches":
                 assets.extend(_process_switches(cleaned_df))
+            elif sheet == "Storage":
+                assets.extend(_process_storage(cleaned_df))
         else:
             print(f"[DEBUG] Sheet '{sheet}' not found, skipping.")
     return assets
@@ -136,12 +147,12 @@ def _process_storage(df):
     for _, row in df.iterrows():
         assets.append(Asset(
             company_name=row.get("Company Name"),
-            device_type="Storage",
+            device_type=row.get("Device Type", "Storage"),
             model=row.get("Model"),
             make=row.get("MAKE"),
             serial_number=row.get("Serial No."),
             total_capacity=row.get("Total Capacity"),
-            disk_type=row.get("Disk Type"),
+            disk_type=row.get("Disk type"),
             os_version=row.get("OS Version"),
             ip_address=row.get("IP address"),
             subnet_mask=row.get("Subnet Mask"),

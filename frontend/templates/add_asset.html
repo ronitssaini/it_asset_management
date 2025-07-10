@@ -34,8 +34,10 @@
                 <select id="device_type" name="device_type" required>
                     <option value="">Select Type</option>
                     <option value="Desktop">Desktop</option>
+                    <option value="Laptop">Laptop</option>
                     <option value="Server">Server</option>
                     <option value="Switch">Switch</option>
+                    <option value="Storage">Storage</option>
                 </select>
                 <div class="warning" id="warn_device_type"></div>
             </div>
@@ -94,6 +96,14 @@
                 <label for="role">Role</label>
                 <input type="text" id="role" name="role" />
             </div>
+            <div class="form-group" id="model_group" style="display:none;">
+                <label for="model">Model</label>
+                <input type="text" id="model" name="model" />
+            </div>
+            <div class="form-group" id="total_capacity_group" style="display:none;">
+                <label for="total_capacity">Total Capacity</label>
+                <input type="text" id="total_capacity" name="total_capacity" />
+            </div>
             <button type="submit" class="btn">Add Asset</button>
         </form>
         <div id="formSuccess" style="color:#4AB5A7;font-weight:600;margin-top:1.5rem;"></div>
@@ -110,6 +120,12 @@
             location: 'Location is required.',
             ip_address: 'Invalid IP address format.'
         };
+        // Show/hide Storage fields
+        document.getElementById('device_type').addEventListener('change', function() {
+            const val = this.value;
+            document.getElementById('model_group').style.display = (val === 'Storage') ? '' : 'none';
+            document.getElementById('total_capacity_group').style.display = (val === 'Storage') ? '' : 'none';
+        });
         function validateField(id) {
             const el = document.getElementById(id);
             const warn = document.getElementById('warn_' + id);

@@ -13,17 +13,27 @@ server_columns = [
 switch_columns = [
     "Company Name", "Model", "MAKE", "Serial No.", "No. of Ports", "OS Version", "IP address", "Subnet Mask", "Purchase Date", "Additional Device", "Remarks"
 ]
+storage_columns = [
+    "Company Name", "Device Type", "Model", "MAKE", "Serial No.", "Total Capacity", "Disk type", "OS Version", "IP address", "Subnet Mask", "Purchase Date", "Additional Device", "Remarks"
+]
+
+# Add laptops_columns as same as desktop_columns
+laptops_columns = desktop_columns.copy()
 
 required_columns = {
     "Desktop": ["Serial No.", "Company Name", "Device Type"],
+    "Laptop": ["Serial No.", "Company Name", "Device Type"],
     "Server": ["Serial No.", "Company Name"],
-    "Switches": ["Serial No.", "Company Name"]
+    "Switches": ["Serial No.", "Company Name"],
+    "Storage": ["Serial No.", "Company Name", "Device Type"]
 }
 
 sheet_columns = {
     "Desktop": desktop_columns,
+    "Laptop": laptops_columns,
     "Server": server_columns,
-    "Switches": switch_columns
+    "Switches": switch_columns,
+    "Storage": storage_columns
 }
 
 def clean_sheet(df, sheet_name):
@@ -47,7 +57,7 @@ def main():
 
     xls = pd.ExcelFile(args.input)
     cleaned = {}
-    for sheet in ["Desktop", "Server", "Switches"]:
+    for sheet in ["Desktop", "Laptop", "Server", "Switches", "Storage"]:
         if sheet in xls.sheet_names:
             print(f"[INFO] Cleaning sheet: {sheet}")
             df = pd.read_excel(xls, sheet_name=sheet, skiprows=1)

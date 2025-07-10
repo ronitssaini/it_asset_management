@@ -46,3 +46,8 @@ class Asset(Base):
     employee_name = Column(String(100))
     function = Column(String(100))
     role = Column(String(100))
+
+    # Storage-specific Fields
+    model = Column(String(100))
+    total_capacity = Column(String(50))
+    # disk_type already exists

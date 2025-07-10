@@ -86,6 +86,10 @@
                 <h3>Desktops - Last User Table</h3>
                 <div id="desktopTable"></div>
             </div>
+            <div class="desktop-table-container">
+                <h3>Storage Assets</h3>
+                <div id="storageTable"></div>
+            </div>
             <div class="server-tree-container" style="margin-top:2.5rem;">
                 <h3>Server Hierarchy (Physical & Virtual)</h3>
                 <div id="serverTree" style="min-height:200px;"></div>
@@ -216,6 +220,7 @@
             showLocationBreakdown();
             // --- Desktop Table ---
             showDesktopTable();
+            showStorageTable();
             // --- Server Tree ---
             renderServerTree();
         }
@@ -343,22 +348,49 @@
             document.getElementById('desktopTable').innerHTML = html;
         }
 
+        function showStorageTable() {
+            const storages = assets.filter(a => a.device_type && a.device_type.toLowerCase() === 'storage');
+            let html = '<table><thead><tr><th>Serial No.</th><th>Model</th><th>Company</th><th>Total Capacity</th><th>Disk Type</th><th>Location</th><th>Additional Device</th><th>Remarks</th></tr></thead><tbody>';
+            storages.forEach(s => {
+                html += `<tr><td>${s.serial_number || ''}</td><td>${s.model || ''}</td><td>${s.company_name || ''}</td><td>${s.total_capacity || ''}</td><td>${s.disk_type || ''}</td><td>${s.location || ''}</td><td>${s.additional_device || ''}</td><td>${s.remarks || ''}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('storageTable').innerHTML = html;
+        }
+
         async function renderAdminAssetTable() {
             // Fetch all assets (admin only)
             const resp = await fetch('/assets', {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
-            if (!resp.ok) {
-                document.getElementById('adminAssetTable').innerHTML = '<div style="color:#EA5455;">Failed to load assets.</div>';
-                return;
+            if (resp.ok) {
+                const data = await resp.json();
+                let html = '<table><thead><tr><th>Serial No.</th><th>Type</th><th>Location</th><th>Make</th><th>Function</th><th>Additional Devices</th><th>Actions</th></tr></thead><tbody>';
+                data.forEach(asset => {
+                    html += `<tr>
+                        <td>${asset.serial_number || ''}</td>
+                        <td>${asset.device_type || ''}</td>
+                        <td>${asset.location || ''}</td>
+                        <td>${asset.make || ''}</td>
+                        <td>${asset.function || ''}</td>
+                        <td>${asset.additional_device || ''}</td>
+                        <td>
+                            <button onclick="editAsset('${asset.serial_number}')" class="edit-btn">Edit</button>
+                            <button onclick="deleteAsset('${asset.serial_number}')" class="delete-btn">Delete</button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                document.getElementById('adminAssetTable').innerHTML = html;
+                document.getElementById('adminAssetTable').style.display = 'block';
+            } else {
+                document.getElementById('adminAssetTable').innerHTML = '<p>No assets found.</p>';
+                document.getElementById('adminAssetTable').style.display = 'block';
             }
-            const allAssets = await resp.json();
-            let html = '<table><thead><tr><th>Serial No.</th><th>Type</th><th>Company</th><th>Location</th><th>Make</th><th>Employee</th><th>Action</th></tr></thead><tbody>';
-            allAssets.forEach(a => {
-                html += `<tr><td>${a.serial_number || ''}</td><td>${a.device_type || ''}</td><td>${a.company_name || ''}</td><td>${a.location || ''}</td><td>${a.make || ''}</td><td>${a.employee_name || ''}</td><td><button onclick="deleteAsset('${a.serial_number}')" style="background:#EA5455;color:#fff;border:none;padding:0.4rem 1rem;border-radius:5px;cursor:pointer;">Delete</button></td></tr>`;
-            });
-            html += '</tbody></table>';
-            document.getElementById('adminAssetTable').innerHTML = html;
+        }
+
+        async function editAsset(serial) {
+            window.location.href = `/edit_asset/${serial}`;
         }
 
         async function deleteAsset(serial) {
