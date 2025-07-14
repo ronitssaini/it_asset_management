@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.dependencies import get_db
 from backend.auth.dependencies import admin_required, manager_or_admin_required
 from backend.models.asset import Asset
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Optional
 from fastapi.responses import StreamingResponse
 import csv
@@ -47,9 +47,38 @@ class AssetIn(BaseModel):
     class Config:
         from_attributes = True
 
+    @validator('purchase_date', pre=True)
+    def parse_date(cls, v):
+        if v is None or v == '':
+            return None
+        if isinstance(v, date):
+            return v
+        from datetime import datetime
+        # Try DD-MM-YYYY
+        try:
+            return datetime.strptime(v, "%d-%m-%Y").date()
+        except ValueError:
+            pass
+        # Try ISO
+        try:
+            return datetime.strptime(v, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+        raise ValueError("purchase_date must be in DD-MM-YYYY or YYYY-MM-DD format")
+
 class AssetOut(AssetIn):
     class Config:
         from_attributes = True
+        json_encoders = {date: lambda v: v.strftime('%d-%m-%Y') if v else ''}
+
+    @validator(
+        'company_name', 'device_type', 'serial_number', 'location', 'make', 'os_version', 'ip_address', 'subnet_mask',
+        'additional_device', 'remarks', 'employee_code', 'employee_name', 'function', 'role', 'typer', 'processor_type',
+        'processor', 'internal_hard_disk', 'disk_type', 'raid', 'ram', 'network_card', 'hba_card', 'model', 'total_capacity',
+        pre=True, always=True
+    )
+    def none_to_empty_string(cls, v):
+        return v if v is not None else ''
 
 def asset_to_dict(asset):
     return {c.name: getattr(asset, c.name) for c in asset.__table__.columns}

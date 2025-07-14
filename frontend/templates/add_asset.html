@@ -120,6 +120,10 @@
             location: 'Location is required.',
             ip_address: 'Invalid IP address format.'
         };
+        function convertToISO(dateStr) {
+            const [day, month, year] = dateStr.split("-");
+            return `${year}-${month}-${day}`;
+        }
         // Show/hide Storage fields
         document.getElementById('device_type').addEventListener('change', function() {
             const val = this.value;

@@ -11,7 +11,11 @@ from backend.models.asset import Asset
 router = APIRouter(prefix="/upload", tags=["upload"])
 
 def asset_to_dict(asset):
-    return {c.name: getattr(asset, c.name) for c in asset.__table__.columns}
+    d = {c.name: getattr(asset, c.name) for c in asset.__table__.columns}
+    # Convert date fields to string
+    if 'purchase_date' in d and d['purchase_date'] is not None:
+        d['purchase_date'] = d['purchase_date'].strftime('%d-%m-%Y')
+    return d
 
 @router.post("/excel")
 async def upload_excel(
