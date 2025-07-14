@@ -22,27 +22,29 @@
     <div class="container">
         <div class="upload-section">
             <div class="info-box" style="background:#f8f5ff; border-left:6px solid #782891; border-radius:8px; padding:1.5rem 2rem; margin-bottom:2rem; color:#4B286D;">
-                <h3 style="margin-top:0; color:#782891;">Important: Excel Upload Guidelines</h3>
+                <h3 style="margin-top:0; color:#782891;">Important: File Upload Guidelines</h3>
                 <ul style="margin:0 0 0 1.5rem; padding:0; font-size:1.05rem;">
-                    <li><b>Sheet Names:</b> Use <b>Desktop</b>, <b>Server</b>, and/or <b>Switches</b> as sheet names (case-sensitive).</li>
-                    <li><b>Required Columns:</b> Each sheet must have these columns:<br>
-                        <b>Desktop:</b> Serial No., Company Name, Device Type<br>
+                    <li><b>Supported Formats:</b> Excel (.xlsx, .xls) and CSV (.csv) files are accepted.</li>
+                    <li><b>Excel Files:</b> Use <b>Desktop</b>, <b>Laptop</b>, <b>Server</b>, <b>Switches</b>, and/or <b>Storage</b> as sheet names (case-sensitive).</li>
+                    <li><b>CSV Files:</b> Should contain all assets of the same type in a single file.</li>
+                    <li><b>Required Columns:</b> Each file must have these columns:<br>
+                        <b>Desktop/Laptop:</b> Serial No., Company Name, Device Type<br>
                         <b>Server:</b> Serial No., Company Name<br>
-                        <b>Switches:</b> Serial No., Company Name
+                        <b>Switches:</b> Serial No., Company Name<br>
+                        <b>Storage:</b> Serial No., Company Name, Device Type
                     </li>
                     <li><b>Column Names:</b> Must match exactly (e.g., <code>Serial No.</code>, <code>Company Name</code>).</li>
                     <li><b>Duplicates:</b> Duplicate Serial No. rows will be skipped automatically.</li>
                     <li><b>Missing Required Fields:</b> Rows missing required fields will be ignored.</li>
-                    <li><b>File Format:</b> Only .xlsx or .xls files are accepted.</li>
-                    <li><b>Tip:</b> <a href="/static/sample_inventory.xlsx" download style="color:#782891; text-decoration:underline; font-weight:600;">Download a sample template</a> if unsure about the format.</li>
-
+                    <li><b>Tip:</b> <a href="/static/sample_inventory.xlsx" download style="color:#782891; text-decoration:underline; font-weight:600;">Download a sample Excel template</a> if unsure about the format.</li>
                 </ul>
             </div>
             <h2>Upload Asset Inventory</h2>
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="file">Select Excel File:</label>
-                    <input type="file" id="file" name="file" accept=".xlsx,.xls" required>
+                    <label for="file">Select File (Excel or CSV):</label>
+
+                    <input type="file" id="file" name="file" accept=".xlsx,.xls,.csv" required>
                 </div>
                 <button type="submit">Upload</button>
             </form>
@@ -56,6 +58,52 @@
             window.location.href = '/login';
         }
 
+        async function getCurrentUser() {
+            try {
+                const response = await fetch('/me', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    currentUser = await response.json();
+                    // Show admin-specific links for admin only
+                    if (currentUser.role === 'admin') {
+                        document.getElementById('addAssetLink').style.display = 'inline-block';
+                        document.getElementById('adminApprovalsNavLink').style.display = 'inline-block';
+                        // Check for pending approvals
+                        checkPendingUserApprovals();
+                    }
+                }
+            } catch (error) {
+                console.error('Error getting current user:', error);
+            }
+        }
+
+        async function checkPendingUserApprovals() {
+            try {
+                const response = await fetch('/users/pending/count', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const navBadge = document.getElementById('navApprovalNotificationBadge');
+                    if (data.count > 0) {
+                        if (navBadge) {
+                            navBadge.textContent = data.count;
+                            navBadge.classList.remove('hidden');
+                        }
+                    } else {
+                        if (navBadge) navBadge.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking pending approvals:', error);
+            }
+        }
+
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -67,7 +115,8 @@
             statusDiv.textContent = 'Uploading...';
             
             try {
-                const response = await fetch('/upload/excel', {
+                
+                const response = await fetch('/upload/file', {
                     method: 'POST',
                     body: formData,
                     headers: {

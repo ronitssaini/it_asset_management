@@ -28,10 +28,13 @@
             <img src="/static/smart_ping_03022020.png" alt="Smart Ping Logo" style="height:40px; width:auto; display:block;" />
         </div>
         <div class="nav-links">
-            <a href="/">Home</a>
             <a href="/dashboard" class="active">Dashboard</a>
             <a href="/upload" id="uploadAssetLink" style="display:none;">Upload Assets</a>
             <a href="/add_asset" id="addAssetLink" style="display:none;">Add Asset</a>
+            <a href="/admin/approvals" id="adminApprovalsNavLink" style="display:none;" class="nav-link-with-notification">
+                Approvals
+                <span id="navApprovalNotificationBadge" class="notification-badge hidden">0</span>
+            </a>
             <a href="#about">About Us</a>
             <a href="#contact">Contact Us</a>
             <button onclick="logout()">Logout</button>
@@ -51,8 +54,9 @@
             <div class="card" id="adminCard" style="display: none;">
                 <h3>Admin Actions</h3>
                 <div style="display: flex; flex-direction: column; gap: 1rem;">
-                    <button onclick="goToAdminApprovals()" style="width: 100%;">
+                    <button onclick="goToAdminApprovals()" style="width: 100%;" id="adminApprovalsBtn">
                         Manage User Approvals
+                        <span id="approvalNotificationBadge" class="notification-badge hidden">0</span>
                     </button>
                     <p style="font-size: 0.9rem; color: #666; margin: 0;">
                         Approve or reject new user registrations
@@ -131,6 +135,7 @@
                     if (currentUser.role === 'admin') {
                         document.getElementById('addAssetLink').style.display = 'inline-block';
                         document.getElementById('uploadAssetLink').style.display = 'inline-block';
+                        document.getElementById('adminApprovalsNavLink').style.display = 'inline-block';
                     }
                     checkAdminStatus();
                 }
@@ -156,6 +161,40 @@
                         this.textContent = 'View All Assets';
                     }
                 };
+                // Check for pending user approvals
+                checkPendingUserApprovals();
+            }
+        }
+
+        async function checkPendingUserApprovals() {
+            try {
+                const response = await fetch('/users/pending/count', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update both notification badges
+                    const cardBadge = document.getElementById('approvalNotificationBadge');
+                    const navBadge = document.getElementById('navApprovalNotificationBadge');
+                    
+                    if (data.count > 0) {
+                        if (cardBadge) {
+                            cardBadge.textContent = data.count;
+                            cardBadge.classList.remove('hidden');
+                        }
+                        if (navBadge) {
+                            navBadge.textContent = data.count;
+                            navBadge.classList.remove('hidden');
+                        }
+                    } else {
+                        if (cardBadge) cardBadge.classList.add('hidden');
+                        if (navBadge) navBadge.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking pending approvals:', error);
             }
         }
 
@@ -437,6 +476,13 @@
         // Load user info and dashboard/analytics on page load
         getCurrentUser();
         loadDashboardAndAnalytics();
+
+        // Set up periodic check for pending approvals (every 30 seconds for admin users)
+        setInterval(() => {
+            if (currentUser && currentUser.role === 'admin') {
+                checkPendingUserApprovals();
+            }
+        }, 30000);
     </script>
 </body>
 </html>

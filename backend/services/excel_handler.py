@@ -172,3 +172,256 @@ def _parse_date(date_str):
         except Exception:
             continue
     return None  # Only return None if all formats fail
+
+def clean_and_parse_csv_inventory(file_path: str):
+    """Clean and parse CSV inventory file for backend upload."""
+    try:
+        # Try to detect the delimiter
+        df = pd.read_csv(file_path, nrows=1)
+        delimiter = ','
+        
+        # Read the full CSV file
+        df = pd.read_csv(file_path, delimiter=delimiter)
+        
+        # Determine device type from column names or data
+        device_type = _detect_device_type_from_csv(df)
+        
+        print(f"[DEBUG] Detected device type: {device_type}")
+        print(f"[DEBUG] CSV columns: {list(df.columns)}")
+        
+        # Clean the dataframe
+        df = df.rename(columns=lambda x: x.strip() if isinstance(x, str) else x)
+        
+        # Map CSV columns to expected columns based on device type
+        if device_type in ["Desktop", "Laptop"]:
+            df = _map_csv_to_computer_columns(df)
+            return _process_computers(df)
+        elif device_type == "Server":
+            df = _map_csv_to_server_columns(df)
+            return _process_servers(df)
+        elif device_type == "Switch":
+            df = _map_csv_to_switch_columns(df)
+            return _process_switches(df)
+        elif device_type == "Storage":
+            df = _map_csv_to_storage_columns(df)
+            return _process_storage(df)
+        else:
+            # Default to computer processing
+            df = _map_csv_to_computer_columns(df)
+            return _process_computers(df)
+            
+    except Exception as e:
+        print(f"[ERROR] CSV processing failed: {e}")
+        raise e
+
+def _detect_device_type_from_csv(df):
+    """Detect device type from CSV column names or data."""
+    columns = [col.lower() for col in df.columns]
+    
+    # Check for device type column
+    if 'device type' in columns:
+        device_types = df['Device Type'].dropna().unique()
+        if len(device_types) > 0:
+            return str(device_types[0]).strip()
+    
+    # Check for specific columns that indicate device type
+    if any(col in columns for col in ['no. of ports', 'number of ports']):
+        return "Switch"
+    elif any(col in columns for col in ['total capacity', 'disk type']):
+        return "Storage"
+    elif any(col in columns for col in ['processor type', 'total processo core', 'raid']):
+        return "Server"
+    elif any(col in columns for col in ['hard disk', 'ram', 'monitor']):
+        return "Desktop"  # Default to Desktop for computers
+    
+    return "Desktop"  # Default fallback
+
+def _map_csv_to_computer_columns(df):
+    """Map CSV columns to computer (Desktop/Laptop) expected columns."""
+    column_mapping = {
+        'Company Name': 'Company Name',
+        'Device Type': 'Device Type',
+        'MAKE': 'MAKE',
+        'Serial No.': 'Serial No.',
+        'Serial Number': 'Serial No.',
+        'Processor': 'Processor',
+        'Hard disk': 'Hard disk',
+        'Hard Disk': 'Hard disk',
+        'Ram': 'Ram',
+        'RAM': 'Ram',
+        'Monitor': 'Monitor',
+        'Location': 'Location',
+        'OS Version': 'OS Version',
+        'OS': 'OS Version',
+        'IP address': 'IP address',
+        'IP': 'IP address',
+        'Subnet Mask': 'Subnet Mask',
+        'Purchase Date': 'Purchase Date',
+        'Additional Device': 'Additional Device',
+        'Emp. Code': 'Emp. Code',
+        'Employee Code': 'Emp. Code',
+        'Name': 'Name',
+        'Employee Name': 'Name',
+        'Function': 'Function',
+        'Role': 'Role',
+        'Remarks': 'Remarks'
+    }
+    
+    # Rename columns based on mapping
+    for old_col, new_col in column_mapping.items():
+        if old_col in df.columns:
+            df = df.rename(columns={old_col: new_col})
+    
+    # Add missing columns with None values
+    expected_columns = desktop_columns
+    for col in expected_columns:
+        if col not in df.columns:
+            df[col] = None
+    
+    # Filter to only expected columns
+    df = df[[col for col in expected_columns if col in df.columns]]
+    
+    # Drop rows with missing required columns
+    req = required_columns["Desktop"]
+    df = df.dropna(subset=[col for col in req if col in df.columns])
+    df = df.drop_duplicates(subset=["Serial No."])
+    
+    return df
+
+def _map_csv_to_server_columns(df):
+    """Map CSV columns to server expected columns."""
+    column_mapping = {
+        'Company Name': 'Company Name',
+        'Typer': 'Typer',
+        'Type': 'Typer',
+        'MAKE': 'MAKE',
+        'Serial No.': 'Serial No.',
+        'Serial Number': 'Serial No.',
+        'Processor Typer': 'Processor Typer',
+        'Processor Type': 'Processor Typer',
+        'Processor': 'Processor',
+        'Total Processo Core': 'Total Processo Core',
+        'Total Processor Core': 'Total Processo Core',
+        'Internal Hard Disk': 'Internal Hard Disk',
+        'Disk Type': 'Disk Type',
+        'Qty': 'Qty',
+        'Quantity': 'Qty',
+        'Raid': 'Raid',
+        'RAID': 'Raid',
+        'Ram': 'Ram',
+        'RAM': 'Ram',
+        'Network Card': 'Network Card',
+        'HBA Card': 'HBA Card',
+        'Location': 'Location',
+        'OS Version': 'OS Version',
+        'OS': 'OS Version',
+        'IP address': 'IP address',
+        'IP': 'IP address',
+        'Subnet Mask': 'Subnet Mask',
+        'Purchase Date': 'Purchase Date'
+    }
+    
+    # Rename columns based on mapping
+    for old_col, new_col in column_mapping.items():
+        if old_col in df.columns:
+            df = df.rename(columns={old_col: new_col})
+    
+    # Add missing columns with None values
+    expected_columns = server_columns
+    for col in expected_columns:
+        if col not in df.columns:
+            df[col] = None
+    
+    # Filter to only expected columns
+    df = df[[col for col in expected_columns if col in df.columns]]
+    
+    # Drop rows with missing required columns
+    req = required_columns["Server"]
+    df = df.dropna(subset=[col for col in req if col in df.columns])
+    df = df.drop_duplicates(subset=["Serial No."])
+    
+    return df
+
+def _map_csv_to_switch_columns(df):
+    """Map CSV columns to switch expected columns."""
+    column_mapping = {
+        'Company Name': 'Company Name',
+        'Model': 'Model',
+        'MAKE': 'MAKE',
+        'Serial No.': 'Serial No.',
+        'Serial Number': 'Serial No.',
+        'No. of Ports': 'No. of Ports',
+        'Number of Ports': 'No. of Ports',
+        'OS Version': 'OS Version',
+        'OS': 'OS Version',
+        'IP address': 'IP address',
+        'IP': 'IP address',
+        'Subnet Mask': 'Subnet Mask',
+        'Purchase Date': 'Purchase Date',
+        'Additional Device': 'Additional Device',
+        'Remarks': 'Remarks'
+    }
+    
+    # Rename columns based on mapping
+    for old_col, new_col in column_mapping.items():
+        if old_col in df.columns:
+            df = df.rename(columns={old_col: new_col})
+    
+    # Add missing columns with None values
+    expected_columns = switch_columns
+    for col in expected_columns:
+        if col not in df.columns:
+            df[col] = None
+    
+    # Filter to only expected columns
+    df = df[[col for col in expected_columns if col in df.columns]]
+    
+    # Drop rows with missing required columns
+    req = required_columns["Switches"]
+    df = df.dropna(subset=[col for col in req if col in df.columns])
+    df = df.drop_duplicates(subset=["Serial No."])
+    
+    return df
+
+def _map_csv_to_storage_columns(df):
+    """Map CSV columns to storage expected columns."""
+    column_mapping = {
+        'Company Name': 'Company Name',
+        'Device Type': 'Device Type',
+        'Model': 'Model',
+        'MAKE': 'MAKE',
+        'Serial No.': 'Serial No.',
+        'Serial Number': 'Serial No.',
+        'Total Capacity': 'Total Capacity',
+        'Disk type': 'Disk type',
+        'Disk Type': 'Disk type',
+        'OS Version': 'OS Version',
+        'OS': 'OS Version',
+        'IP address': 'IP address',
+        'IP': 'IP address',
+        'Subnet Mask': 'Subnet Mask',
+        'Purchase Date': 'Purchase Date',
+        'Additional Device': 'Additional Device',
+        'Remarks': 'Remarks'
+    }
+    
+    # Rename columns based on mapping
+    for old_col, new_col in column_mapping.items():
+        if old_col in df.columns:
+            df = df.rename(columns={old_col: new_col})
+    
+    # Add missing columns with None values
+    expected_columns = storage_columns
+    for col in expected_columns:
+        if col not in df.columns:
+            df[col] = None
+    
+    # Filter to only expected columns
+    df = df[[col for col in expected_columns if col in df.columns]]
+    
+    # Drop rows with missing required columns
+    req = required_columns["Storage"]
+    df = df.dropna(subset=[col for col in req if col in df.columns])
+    df = df.drop_duplicates(subset=["Serial No."])
+    
+    return df

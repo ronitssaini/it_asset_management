@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from fastapi.responses import StreamingResponse
 import csv
+from datetime import date
 from io import StringIO
 
 # This is the critical line - must create the router instance
@@ -22,13 +23,27 @@ class AssetIn(BaseModel):
     os_version: Optional[str] = None
     ip_address: Optional[str] = None
     subnet_mask: Optional[str] = None
-    purchase_date: Optional[str] = None
+    purchase_date: Optional[date] = None
     additional_device: Optional[str] = None
     remarks: Optional[str] = None
     employee_code: Optional[str] = None
     employee_name: Optional[str] = None
     function: Optional[str] = None
     role: Optional[str] = None
+    typer: Optional[str] = None
+    processor_type: Optional[str] = None
+    processor: Optional[str] = None
+    total_processor_core: Optional[int] = None
+    internal_hard_disk: Optional[str] = None
+    disk_type: Optional[str] = None
+    qty: Optional[int] = None
+    raid: Optional[str] = None
+    ram: Optional[str] = None
+    network_card: Optional[str] = None
+    hba_card: Optional[str] = None
+    model: Optional[str] = None
+    no_of_ports: Optional[int] = None
+    total_capacity: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -70,11 +85,11 @@ def delete_asset(serial_number: str, db: Session = Depends(get_db), role: str = 
 
 @router.get("/report")
 def get_asset_report(
-    type: str = None,
-    device_type: str = None,
-    location: str = None,
-    start_date: str = None,
-    end_date: str = None,
+    type: Optional[str] = None,
+    device_type: Optional[str] = None,
+    location: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     role: str = Depends(manager_or_admin_required)
 ):
@@ -93,11 +108,11 @@ def get_asset_report(
 
 @router.get("/report/download")
 def download_asset_report(
-    type: str = None,
-    device_type: str = None,
-    location: str = None,
-    start_date: str = None,
-    end_date: str = None,
+    type: Optional[str] = None,
+    device_type: Optional[str] = None,
+    location: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     role: str = Depends(manager_or_admin_required)
 ):

@@ -13,11 +13,13 @@
             <img src="/static/smart_ping_03022020.png" alt="Smart Ping Logo" style="height:40px; width:auto; display:block;" />
         </div>
         <div class="nav-links">
-            <a href="/">Home</a>
             <a href="/dashboard">Dashboard</a>
             <a href="/upload">Upload Assets</a>
             <a href="/analytics">Analytics</a>
-            <a href="/admin/approvals" class="active">Approvals</a>
+            <a href="/admin/approvals" class="active nav-link-with-notification">
+                Approvals
+                <span id="navApprovalNotificationBadge" class="notification-badge hidden">0</span>
+            </a>
             <a href="#about">About Us</a>
             <a href="#contact">Contact Us</a>
             <button onclick="logout()">Logout</button>
@@ -125,6 +127,8 @@
                 if (response.ok) {
                     document.getElementById('approvalMessage').textContent = 'User approved!';
                     loadAllUsers();
+                    // Update notification badge on dashboard if it exists
+                    updateNotificationBadge();
                 } else {
                     const error = await response.json();
                     document.getElementById('approvalMessage').textContent = error.detail || 'Approval failed.';
@@ -146,6 +150,8 @@
                 if (response.ok) {
                     document.getElementById('approvalMessage').textContent = 'User rejected and deleted!';
                     loadAllUsers();
+                    // Update notification badge on dashboard if it exists
+                    updateNotificationBadge();
                 } else {
                     const error = await response.json();
                     document.getElementById('approvalMessage').textContent = error.detail || 'Rejection failed.';
@@ -171,6 +177,39 @@
             window.location.href = '/login';
         }
 
+        // Function to update notification badge on dashboard
+        async function updateNotificationBadge() {
+            try {
+                const response = await fetch('/users/pending/count', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    // Update both notification badges if they exist
+                    const cardBadge = document.getElementById('approvalNotificationBadge');
+                    const navBadge = document.getElementById('navApprovalNotificationBadge');
+                    
+                    if (data.count > 0) {
+                        if (cardBadge) {
+                            cardBadge.textContent = data.count;
+                            cardBadge.classList.remove('hidden');
+                        }
+                        if (navBadge) {
+                            navBadge.textContent = data.count;
+                            navBadge.classList.remove('hidden');
+                        }
+                    } else {
+                        if (cardBadge) cardBadge.classList.add('hidden');
+                        if (navBadge) navBadge.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating notification badge:', error);
+            }
+        }
+
         // Expose approveUser and rejectUser to global scope
         window.approveUser = approveUser;
         window.rejectUser = rejectUser;
@@ -179,6 +218,9 @@
         (async function() {
             await getCurrentUser();
             await loadAllUsers();
+            // Check for pending approvals on page load
+            
+            await updateNotificationBadge();
         })();
     </script>
 </body>

@@ -106,6 +106,11 @@ def register_user(user: RegisterUserRequest, db: Session = Depends(get_db)):
 def list_pending_users(db: Session = Depends(get_db), role: str = Depends(admin_required)):
     return db.query(User).filter(User.is_active == False).all()
 
+@router.get("/users/pending/count")
+def get_pending_users_count(db: Session = Depends(get_db), role: str = Depends(admin_required)):
+    count = db.query(User).filter(User.is_active == False).count()
+    return {"count": count}
+
 @router.post("/users/approve/{user_id}", response_model=UserOut)
 def approve_user(user_id: int, db: Session = Depends(get_db), role: str = Depends(admin_required)):
     user = db.query(User).filter(User.id == user_id).first()
