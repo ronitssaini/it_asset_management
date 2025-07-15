@@ -10,7 +10,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <style>
         .analytics-section { margin-top: 2rem; }
-        .an ffnalytics-grid { display: flex; flex-wrap: wrap; gap: 2rem; }
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 2rem;
+        }
         .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(120,40,145,0.08); padding: 2rem; flex: 1 1 350px; min-width: 340px; }
         .chart-container { position: relative; height: 320px; width: 100%; }
         .desktop-table-container { margin-top: 2rem; }
@@ -75,17 +80,24 @@
         <div class="analytics-section">
             <h2>Asset Analytics</h2>
             <div class="analytics-grid">
-                <div class="card">
+                <div class="card" style="grid-column: 1; grid-row: 1;">
                     <div class="chart-title">Asset Distribution by Type</div>
                     <div class="chart-container"><canvas id="assetTypeChart"></canvas></div>
                     <button class="report-btn" onclick="goToReport('type')">Generate Report</button>
                 </div>
-                <div class="card">
+                <div class="card" style="grid-column: 2; grid-row: 1;">
                     <div class="chart-title" id="locationChartTitle">Asset Distribution by Location & Type</div>
                     <div class="chart-container"><canvas id="locationChart"></canvas></div>
                     <div id="locationLegend" style="margin-top:1rem;"></div>
                     <div style="font-size:0.95rem;color:#888;margin-top:0.5rem;">Each bar is divided by asset type</div>
                     <button class="report-btn" onclick="goToReport('location')">Generate Report</button>
+                </div>
+                <div class="card" style="grid-column: 1; grid-row: 2;">
+                    <div class="chart-title">Asset Distribution by Company</div>
+                    <div class="chart-container"><canvas id="companyDonutChart"></canvas></div>
+                </div>
+                <div class="card" style="grid-column: 2; grid-row: 2; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 1.2rem;">
+                    <span>More analytics coming soon...</span>
                 </div>
             </div>
             <div class="desktop-table-container">
@@ -117,6 +129,7 @@
         let currentUser = null;
         let assets = [];
         let assetTypeChart, locationChart;
+        let companyDonutChart;
 
         if (!localStorage.getItem('token')) {
             window.location.href = '/login';
@@ -254,6 +267,35 @@
                             const type = assetTypeChart.data.labels[elements[0].index];
                             showLocationBreakdown(type);
                         }
+                    }
+                }
+            });
+            // --- Company Donut Chart ---
+            const companyCounts = {};
+            assets.forEach(asset => {
+                if (asset.company_name) {
+                    companyCounts[asset.company_name] = (companyCounts[asset.company_name] || 0) + 1;
+                }
+            });
+            const companyLabels = Object.keys(companyCounts);
+            const companyData = Object.values(companyCounts);
+            const companyColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#782891', '#4AB5A7', '#F7B801', '#EA5455'];
+            if (companyDonutChart) companyDonutChart.destroy();
+            companyDonutChart = new Chart(document.getElementById('companyDonutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: companyLabels,
+                    datasets: [{
+                        data: companyData,
+                        backgroundColor: companyColors.slice(0, companyLabels.length),
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Montserrat', size: 14 } } },
+                        title: { display: true, text: 'Asset Distribution by Company', font: { family: 'Montserrat', size: 16 } },
+                        tooltip: { enabled: true }
                     }
                 }
             });
