@@ -101,12 +101,12 @@
                 </div>
             </div>
             <div class="desktop-table-container">
-                <h3>Desktops - Last User Table</h3>
-                <div id="desktopTable"></div>
+                <h3>Laptops - Last User Table</h3>
+                <div id="laptopTable"></div>
             </div>
             <div class="desktop-table-container">
-                <h3>Storage Assets</h3>
-                <div id="storageTable"></div>
+                <h3>Desktops - Last User Table</h3>
+                <div id="desktopTable"></div>
             </div>
             <div class="server-tree-container" style="margin-top:2.5rem;">
                 <h3>Server Hierarchy (Physical & Virtual)</h3>
@@ -303,6 +303,7 @@
             showLocationBreakdown();
             // --- Desktop Table ---
             showDesktopTable();
+            showLaptopTable();
             showStorageTable();
             // --- Server Tree ---
             renderServerTree();
@@ -421,14 +422,88 @@
         }
 
         function showDesktopTable() {
-            const desktops = assets.filter(a => a.device_type && a.device_type.toLowerCase() === 'desktop');
-            let html = '<table><thead><tr><th>Serial No.</th><th>Last User</th><th>Location</th><th>Make</th><th>Function</th><th>Additional Devices</th></tr></thead><tbody>';
-            desktops.forEach(d => {
-                let addl = d.additional_device ? d.additional_device : 'None';
-                html += `<tr><td>${d.serial_number || ''}</td><td>${d.employee_name || ''}</td><td>${d.location || ''}</td><td>${d.make || ''}</td><td>${d.function || ''}</td><td>${addl}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            document.getElementById('desktopTable').innerHTML = html;
+    const desktops = assets.filter(a => a.device_type && a.device_type.toLowerCase() === 'desktop');
+    let isAdmin = currentUser && currentUser.role === 'admin';
+    let isManager = currentUser && currentUser.role === 'manager';
+    let html = '<table><thead><tr><th>Serial No.</th><th>Last 3 Users</th><th>Location</th><th>Make</th><th>Function</th><th>Additional Devices</th>';
+    if (isAdmin) html += '<th>Actions</th>';
+    html += '</tr></thead><tbody>';
+    if (desktops.length === 0) {
+        html += `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#888;">No desktops found.</td></tr>`;
+    } else {
+        desktops.forEach(d => {
+            let addl = d.additional_device ? d.additional_device : 'None';
+            let lastUsers = Array.isArray(d.last_users) ? d.last_users : (d.last_users ? [d.last_users] : []);
+            html += `<tr><td>${d.serial_number || ''}</td><td><select id="desktop-users-${d.serial_number}" ${(!isAdmin && !isManager) ? 'disabled' : ''} style='width:120px;'>${lastUsers.map(u => `<option>${u}</option>`).join('')}</select></td><td>${d.location || ''}</td><td>${d.make || ''}</td><td>${d.function || ''}</td><td>${addl}</td>`;
+            if (isAdmin) {
+                html += `<td><button onclick="editLastUsers('${d.serial_number}')">Edit Users</button></td>`;
+            }
+            html += `</tr>`;
+        });
+    }
+    html += '</tbody></table>';
+    document.getElementById('desktopTable').innerHTML = html;
+}
+
+function showLaptopTable() {
+    const laptops = assets.filter(a => a.device_type && a.device_type.toLowerCase() === 'laptop');
+    let isAdmin = currentUser && currentUser.role === 'admin';
+    let isManager = currentUser && currentUser.role === 'manager';
+    let html = '<table><thead><tr><th>Serial No.</th><th>Last 3 Users</th><th>Location</th><th>Make</th><th>Function</th><th>Additional Devices</th>';
+    if (isAdmin) html += '<th>Actions</th>';
+    html += '</tr></thead><tbody>';
+    if (laptops.length === 0) {
+        html += `<tr><td colspan="${isAdmin ? 7 : 6}" style="text-align:center; color:#888;">No laptops found.</td></tr>`;
+    } else {
+        laptops.forEach(d => {
+            let addl = d.additional_device ? d.additional_device : 'None';
+            let lastUsers = Array.isArray(d.last_users) ? d.last_users : (d.last_users ? [d.last_users] : []);
+            html += `<tr><td>${d.serial_number || ''}</td><td><select id="laptop-users-${d.serial_number}" ${(!isAdmin && !isManager) ? 'disabled' : ''} style='width:120px;'>${lastUsers.map(u => `<option>${u}</option>`).join('')}</select></td><td>${d.location || ''}</td><td>${d.make || ''}</td><td>${d.function || ''}</td><td>${addl}</td>`;
+            if (isAdmin) {
+                html += `<td><button onclick="editLaptopLastUsers('${d.serial_number}')">Edit Users</button></td>`;
+            }
+            html += `</tr>`;
+        });
+    }
+    html += '</tbody></table>';
+    document.getElementById('laptopTable').innerHTML = html;
+}
+
+        function editLastUsers(serialNumber) {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            const asset = assets.find(a => a.serial_number === serialNumber);
+            if (!asset) return;
+            let lastUsers = Array.isArray(asset.last_users) ? asset.last_users : (asset.last_users ? [asset.last_users] : []);
+            const newUser = prompt('Enter the new user name to add (the oldest user will be removed if there are already 3):');
+            if (newUser && newUser.trim()) {
+                let updatedUsers = [newUser.trim(), ...lastUsers];
+                if (updatedUsers.length > 3) updatedUsers = updatedUsers.slice(0, 3);
+                updateAssetLastUsers(serialNumber, updatedUsers);
+            }
+        }
+
+        async function updateAssetLastUsers(serialNumber, userArr) {
+            try {
+                const asset = assets.find(a => a.serial_number === serialNumber);
+                if (!asset) return;
+                const updated = { ...asset, last_users: userArr };
+                const resp = await fetch(`/assets/${serialNumber}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(updated)
+                });
+                if (resp.ok) {
+                    alert('Last users updated successfully.');
+                    loadDashboardAndAnalytics();
+                } else {
+                    alert('Failed to update last users.');
+                }
+            } catch (err) {
+                alert('Error updating last users.');
+            }
         }
 
         function showStorageTable() {
@@ -438,7 +513,10 @@
                 html += `<tr><td>${s.serial_number || ''}</td><td>${s.model || ''}</td><td>${s.company_name || ''}</td><td>${s.total_capacity || ''}</td><td>${s.disk_type || ''}</td><td>${s.location || ''}</td><td>${s.additional_device || ''}</td><td>${s.remarks || ''}</td></tr>`;
             });
             html += '</tbody></table>';
-            document.getElementById('storageTable').innerHTML = html;
+            var storageTableElem = document.getElementById('storageTable');
+            if (storageTableElem) {
+                storageTableElem.innerHTML = html;
+            }
         }
 
         async function renderAdminAssetTable() {
@@ -458,7 +536,6 @@
                         <td>${asset.function || ''}</td>
                         <td>${asset.additional_device || ''}</td>
                         <td>
-                            <button onclick="editAsset('${asset.serial_number}')" class="edit-btn">Edit</button>
                             <button onclick="deleteAsset('${asset.serial_number}')" class="delete-btn">Delete</button>
                         </td>
                     </tr>`;

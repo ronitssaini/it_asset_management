@@ -70,6 +70,11 @@ def _process_computers(df):
     """Process desktop/laptop rows"""
     assets = []
     for _, row in df.iterrows():
+        # Set last_users as a list with the employee_name if present
+        last_users = None
+        name = row.get("Name")
+        if pd.notna(name) and str(name).strip():
+            last_users = [str(name).strip()]
         assets.append(Asset(
             company_name=row.get("Company Name"),
             device_type=row.get("Device Type"),
@@ -86,10 +91,11 @@ def _process_computers(df):
             purchase_date=_parse_date(row.get("Purchase Date")),
             additional_device=row.get("Additional Device"),
             employee_code=str(row.get("Emp. Code")) if pd.notna(row.get("Emp. Code")) else None,
-            employee_name=row.get("Name"),
+            employee_name=name,
             function=row.get("Function"),
             role=row.get("Role"),
-            remarks=row.get("Remarks", "")
+            remarks=row.get("Remarks", ""),
+            last_users=last_users
         ))
     return assets
 

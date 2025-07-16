@@ -20,6 +20,9 @@ class Asset(Base):
     remarks = Column(Text)
     location = Column(String(100))
 
+    # New: Store last 3 users for desktops/laptops as JSON string
+    last_users = Column(Text)  # JSON-encoded list of last 3 users
+
     # Server-specific Fields
     typer = Column(String(50))                    # Physical / Virtual
     processor_type = Column(String(50))           # e.g., Intel

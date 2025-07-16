@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.dependencies import get_db
 from backend.auth.dependencies import admin_required, manager_or_admin_required
 from backend.models.asset import Asset
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, root_validator
 from typing import List, Optional
 from fastapi.responses import StreamingResponse
 import csv
@@ -44,6 +44,8 @@ class AssetIn(BaseModel):
     model: Optional[str] = None
     no_of_ports: Optional[int] = None
     total_capacity: Optional[str] = None
+    # New field for last 3 users
+    last_users: Optional[list[str]] = None
     class Config:
         from_attributes = True
 
@@ -69,7 +71,7 @@ class AssetIn(BaseModel):
 class AssetOut(AssetIn):
     class Config:
         from_attributes = True
-        json_encoders = {date: lambda v: v.strftime('%d-%m-%Y') if v else ''}
+        json_encoders = {date: lambda v: v.strftime('%d-%m-%Y') if v else '', list: lambda v: v if v else []}
 
     @validator(
         'company_name', 'device_type', 'serial_number', 'location', 'make', 'os_version', 'ip_address', 'subnet_mask',
@@ -80,6 +82,47 @@ class AssetOut(AssetIn):
     def none_to_empty_string(cls, v):
         return v if v is not None else ''
 
+    @validator('last_users', pre=True, always=True)
+    def parse_last_users(cls, v):
+        import json
+        if v is None or v == '' or v == '[]':
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+                return []
+            except Exception:
+                return []
+        return []
+
+    @root_validator(pre=True)
+    def add_employee_name_to_last_users(cls, values):
+        try:
+            device_type = (values.get('device_type') or '').lower()
+            if device_type not in ('desktop', 'laptop'):
+                return values
+            emp_name = values.get('employee_name') or ''
+            if not emp_name:
+                return values
+            last_users = values.get('last_users') or []
+            # ensure list
+            if not isinstance(last_users, list):
+                last_users = [last_users]
+            # Prepend emp_name if not already present and not empty
+            if emp_name and emp_name not in last_users:
+                last_users = [emp_name] + last_users
+            # Remove empty strings and keep unique
+            last_users = [u for i, u in enumerate(last_users) if u and u not in last_users[:i]]
+            values['last_users'] = last_users[:3]  # keep up to 3
+            return values
+        except Exception:
+            return values
+
+
 def asset_to_dict(asset):
     return {c.name: getattr(asset, c.name) for c in asset.__table__.columns}
 
@@ -88,15 +131,62 @@ def get_assets(db: Session = Depends(get_db), role: str = Depends(manager_or_adm
     assets = db.query(Asset).all()
     return assets
 
+# In update_asset and create_asset, always sync employee_name and last_users for desktops/laptops
+@router.put("/{serial_number}", response_model=AssetOut)
+def update_asset(serial_number: str, asset: AssetIn, db: Session = Depends(get_db)):
+    import json
+    db_asset = db.query(Asset).filter_by(serial_number=serial_number).first()
+    if not db_asset:
+        raise HTTPException(status_code=404, detail="Asset not found.")
+    data = asset.dict()
+    for k, v in data.items():
+        if isinstance(v, str) and v.strip() == "":
+            data[k] = None
+    # Handle last_users for desktops and laptops only
+    if asset.device_type in ["Desktop", "Laptop"]:
+        last_users = asset.last_users or []
+        if not isinstance(last_users, list):
+            last_users = [last_users]
+        # Always ensure employee_name is first
+        emp_name = asset.employee_name or ""
+        if emp_name and emp_name not in last_users:
+            last_users = [emp_name] + last_users
+        # Remove empty strings and keep unique
+        last_users = [u for i, u in enumerate(last_users) if u and u not in last_users[:i]]
+        last_users = last_users[:3]
+        data["last_users"] = json.dumps(last_users)
+    else:
+        data["last_users"] = None
+    for k, v in data.items():
+        setattr(db_asset, k, v)
+    db.commit()
+    db.refresh(db_asset)
+    return db_asset
+
 @router.post("/", response_model=AssetOut, status_code=status.HTTP_201_CREATED)
 def create_asset(asset: AssetIn, db: Session = Depends(get_db)):
-    # Check for duplicate serial number
+    import json
     if db.query(Asset).filter_by(serial_number=asset.serial_number).first():
         raise HTTPException(status_code=400, detail="Asset with this serial number already exists.")
     data = asset.dict()
     for k, v in data.items():
         if isinstance(v, str) and v.strip() == "":
             data[k] = None
+    # Handle last_users for desktops and laptops only
+    if asset.device_type in ["Desktop", "Laptop"]:
+        last_users = asset.last_users or []
+        if not isinstance(last_users, list):
+            last_users = [last_users]
+        # Always ensure employee_name is first
+        emp_name = asset.employee_name or ""
+        if emp_name and emp_name not in last_users:
+            last_users = [emp_name] + last_users
+        # Remove empty strings and keep unique
+        last_users = [u for i, u in enumerate(last_users) if u and u not in last_users[:i]]
+        last_users = last_users[:3]
+        data["last_users"] = json.dumps(last_users)
+    else:
+        data["last_users"] = None
     db_asset = Asset(**data)
     db.add(db_asset)
     db.commit()
