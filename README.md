@@ -79,23 +79,44 @@ pip install -r requirements.txt
 ```
 
 ### 4. Database Setup
+
+#### Option A: Create New Database
 ```bash
 # Create PostgreSQL database
-createdb it_asset_management
+createdb assetmgmt
 
 # Or using psql
-psql -U postgres
-CREATE DATABASE it_asset_management;
+psql -U postgres -c "CREATE DATABASE assetmgmt;"
 ```
+
+#### Option B: Import Sample Data (Recommended)
+We've included a database dump with sample data to help you get started quickly.
+
+1. First, create the database:
+   ```bash
+   createdb assetmgmt
+   ```
+
+2. Import the database dump:
+   ```bash
+   psql -d assetmgmt -f db_backup/assetmgmt_dump.sql
+   ```
+
+3. The database will be populated with sample assets including desktops, laptops, and servers.
 
 ### 5. Environment Configuration
 Create a `.env` file in the root directory:
 ```env
-DATABASE_URL=postgresql://username:password@localhost:5432/it_asset_management
+DATABASE_URL=postgresql://localhost:5432/assetmgmt
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 ```
+
+> **Note**: If your PostgreSQL requires authentication, use the format:
+> ```
+> DATABASE_URL=postgresql://username:password@localhost:5432/assetmgmt
+> ```
 
 ### 6. Initialize Database
 ```bash
